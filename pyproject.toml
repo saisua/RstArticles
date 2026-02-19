@@ -1,0 +1,28 @@
+[project]
+name = "rstarticles"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pdf2image>=1.17.0",
+    "sphinx>=9.1.0",
+    "sphinxcontrib-bibtex>=2.6.5",
+    "wikipedia>=1.4.0",
+]
+
+[project.optional-dependencies]
+linter = [
+    "doc8>=2.0.0",
+    "language-tool-python>=3.2.2",
+]
+notebook = [
+    "ipython>=9.10.0",
+    "pdf2image>=1.17.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
+    "ipython>=9.10.0",
+]
