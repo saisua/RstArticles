@@ -27,6 +27,10 @@ notebook = [
     "ipython>=9.10.0",
     "pdf2image>=1.17.0",
 ]
+plot = [
+    "matplotlib>=3.10.8",
+    "pandas>=3.0.1",
+]
 
 [dependency-groups]
 dev = [
