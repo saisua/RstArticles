@@ -1,3 +1,4 @@
+from typing import Optional
 from pathlib import Path
 from dataclasses import dataclass, field
 
@@ -18,7 +19,7 @@ class RSTLinter:
 
 	custom_dictionary: set[str] = field(default_factory=set)
 
-	tool: LanguageTool | None = field(default=None)
+	tool: Optional[LanguageTool] = field(default=None)
 
 	def __post_init__(self):
 		self.tool = LanguageTool(self.language)

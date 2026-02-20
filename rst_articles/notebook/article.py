@@ -1,3 +1,4 @@
+from typing import Optional
 from pathlib import Path
 from dataclasses import dataclass, field
 from functools import partial
@@ -34,7 +35,7 @@ class Article:
 	source_dir: Path = field(default=Path('source'))
 	build_dir: Path = field(default=Path('build'))
 
-	linter: RSTLinter | None = field(default=None)
+	linter: Optional[RSTLinter] = field(default=None)
 
 	_custom_dictionary: set[str] = field(default_factory=set)
 
@@ -113,7 +114,10 @@ class Article:
 		dark: bool,
 		*,
 		extensions: set[str] = default_extensions,
-		base: Path | None = None,
+		base: Optional[Path] = None,
+		definitions: str = "definitions.rst",
+		definition_list: str = "definition_list.rst",
+		bibliography: str = "bibliography.bib",
 	):
 		if base is None:
 			base = self.source_dir
@@ -173,18 +177,33 @@ class Article:
 			enable_linter=False,
 			add_fname_title=False,
 		)
-		if not (base / "definitions.rst").exists():
-			self.write("definitions.rst", "", base=base, add_fname_title=False)
-		if not (base / "definition_list.rst").exists():
-			self.write("definition_list.rst", "", base=base, add_fname_title=False)
-		if not (base / "bibliography.bib").exists():
-			self.write("bibliography.bib", "", base=base, add_fname_title=False)
+		if not (base / definitions).exists():
+			self.write(
+				definitions, "",
+				base=base,
+				enable_linter=False,
+				add_fname_title=False,
+			)
+		if not (base / definition_list).exists():
+			self.write(
+				definition_list, "",
+				base=base,
+				enable_linter=False,
+				add_fname_title=False,
+			)
+		if not (base / bibliography).exists():
+			self.write(
+				bibliography, "",
+				base=base,
+				enable_linter=False,
+				add_fname_title=False,
+			)
 
 	def set_index(
 		self,
 		*files: Path | str,
 		fname: Path | str = "index.rst",
-		base: Path | None = None,
+		base: Optional[Path] = None,
 		definitions: str = "definitions.rst",
 		definition_list: str = "definition_list.rst",
 		bibliography: str = "bibliography.bib",
@@ -222,7 +241,7 @@ class Article:
 		content: str,
 		*,
 		fname: Path | str = "bibliography.bib",
-		base: Path | None = None,
+		base: Optional[Path] = None,
 		enable_linter: bool = None,
 		style: str = "unsrt",
 	):
@@ -249,7 +268,7 @@ class Article:
 		content: str,
 		*,
 		fname: Path | str = "definitions.rst",
-		base: Path | None = None,
+		base: Optional[Path] = None,
 		enable_linter: bool = None,
 	):
 		if base is None:
@@ -275,7 +294,7 @@ class Article:
 		file: Path | str,
 		content: str,
 		*,
-		base: Path | None = None,
+		base: Optional[Path] = None,
 		enable_linter: bool = True,
 		enable_syntax_linting: bool = True,
 		enable_language_linting: bool = True,
@@ -330,9 +349,9 @@ class Article:
 	def build(
 		self,
 		*,
-		source_dir: Path | None = None,
-		build_dir: Path | None = None,
-		log_file: Path | None = None,
+		source_dir: Optional[Path] = None,
+		build_dir: Optional[Path] = None,
+		log_file: Optional[Path] = None,
 	):
 		if source_dir is None:
 			source_dir = self.source_dir
@@ -396,8 +415,8 @@ class Article:
 	def render_pdf(
 		self,
 		*,
-		build_dir: Path | None = None,
-		show_page: int | None = None,
+		build_dir: Optional[Path] = None,
+		show_page: Optional[int] = None,
 	):
 		if build_dir is None:
 			build_dir = self.build_dir
