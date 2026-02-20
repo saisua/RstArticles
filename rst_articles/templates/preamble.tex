@@ -1,0 +1,27 @@
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\makeatletter
+\fancypagestyle{normal}{
+	\fancyhf{}
+	\fancyhead[RO,LE]{{\py@HeaderFamily ___2_{author}___}} % Left-Even Header: Author Name
+	\fancyhead[LO,RE]{{\py@HeaderFamily ___2_{title}___}} % Right-Odd Header: Current Chapter/Part title
+	\fancyfoot[RO,LE]{{\py@HeaderFamily \thepage}} % Right-Odd/Left-Even Footer: Page Number
+	\fancyfoot[LO,RE]{{\py@HeaderFamily \nouppercase{\rightmark}}} % Right-Odd Header: Current Chapter/Part title
+	\renewcommand{\headrulewidth}{0.4pt}
+	\renewcommand{\footrulewidth}{0.4pt}
+}
+\fancypagestyle{plain}{
+	\fancyhf{} % Clear all headers/footers
+	\fancyfoot[RO,LE]{{\py@HeaderFamily \thepage}} % Just the page number in the footer
+	\renewcommand{\headrulewidth}{0pt}
+	\renewcommand{\footrulewidth}{0pt}
+}
+\makeatother
+
+\usepackage{chngcntr}
+\counterwithout{section}{chapter}
+\setcounter{section}{0}

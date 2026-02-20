@@ -4,17 +4,17 @@ from pathlib import Path
 sys.path.insert(0, str((Path(__file__).parent.parent / "_ext").resolve()))
 
 extensions = [
-	"___{extensions}___",
+	"___1_{extensions}___",
 ]
 bibtex_bibfiles = ['bibliography.bib']
-project = "___{project}___"
-title = "___{title}___"
-subtitle = "___{subtitle}___"
-author = "___{author}___"
-institution = "___{institution}___"
+project = "___1_{project}___"
+title = "___1_{title}___"
+subtitle = "___1_{subtitle}___"
+author = "___1_{author}___"
+institution = "___1_{institution}___"
 numfig = True
 
-dark = ___{dark}___  # noqa: E999
+dark = ___1_{dark}___  # noqa: E999
 
 if dark:
 	background_color = 'black'
@@ -58,41 +58,16 @@ for placeholder, replacement in {
 
 latex_toplevel_sectioning = 'section'
 
-preamble = r'''
-\usepackage{amsmath,amssymb}
-\usepackage{graphicx}
-\usepackage{booktabs}
+with open('preamble.tex') as f:
+	preamble = f.read()
 
-\usepackage{fancyhdr}
-\pagestyle{fancy}
-\makeatletter
-\fancypagestyle{normal}{
-	\fancyhf{} % Clear all headers/footers
-	% Set the header content:
-	% RO/LE: Right Odd / Left Even page header
-	% Use \py@HeaderFamily for the default Sphinx font style
-	% \nouppercase{} prevents capitalization of the chapter/section name
-	% \rightmark is the current section/chapter title
-	\fancyhead[RO,LE]{{\py@HeaderFamily ''' + author + r'''}} % Left-Even Header: Author Name
-	\fancyhead[LO,RE]{{\py@HeaderFamily ''' + title + r'''}} % Right-Odd Header: Current Chapter/Part title
-	% Set the footer content (e.g., page number)
-	\fancyfoot[RO,LE]{{\py@HeaderFamily \thepage}} % Right-Odd/Left-Even Footer: Page Number
-	\fancyfoot[LO,RE]{{\py@HeaderFamily \nouppercase{\rightmark}}} % Right-Odd Header: Current Chapter/Part title
-	\renewcommand{\headrulewidth}{0.4pt} % Re-add the header rule (line)
-	\renewcommand{\footrulewidth}{0.4pt} % Remove the footer rule
-}
-\fancypagestyle{plain}{
-	\fancyhf{} % Clear all headers/footers
-	\fancyfoot[RO,LE]{{\py@HeaderFamily \thepage}} % Just the page number in the footer
-	\renewcommand{\headrulewidth}{0pt} % Remove header rule
-	\renewcommand{\footrulewidth}{0pt} % Remove footer rule
-}
-\makeatother
-
-\usepackage{chngcntr}
-\counterwithout{section}{chapter}
-\setcounter{section}{0}
-'''
+preamble = preamble.replace(
+	'___2_{author}___',
+	author
+).replace(
+	'___2_{title}___',
+	title
+)
 
 if background_color is not None:
 	preamble += rf'\pagecolor{{{background_color}}}'
