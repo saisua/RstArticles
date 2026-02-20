@@ -331,6 +331,8 @@ class Article:
 					self.linter.print_language_errors()
 					raise ValueError("Language errors found")
 				lang_errors = True
+		else:
+			self.linter.language_errors.clear()
 
 		with open(file, 'w') as f:
 			f.write(content)
@@ -342,6 +344,8 @@ class Article:
 					self.print_errors()
 					raise ValueError("Syntax errors found")
 				syn_errors = True
+		else:
+			self.linter.syntax_errors.clear()
 
 		if syn_errors or lang_errors:
 			self.print_errors()
