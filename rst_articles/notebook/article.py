@@ -21,18 +21,7 @@ except ImportError:
 
 
 pdir = Path(__file__).parent.parent
-
-with open(pdir / "templates" / "index.rst", "r") as f:
-	index_template = f.read()
-with open(pdir / "templates" / "bibliography.rst", "r") as f:
-	bibliography_template = f.read()
-with open(pdir / "templates" / "definition_list.rst", "r") as f:
-	definition_list_template = f.read()
-with open(pdir / "templates" / "conf.py", "r") as f:
-	config_template = f.read()
-with open(pdir / "templates" / "title.tex", "r") as f:
-	title_template = f.read()
-_ext_path = pdir / "_ext"
+_base_ext_path: Path = pdir / "_ext"
 
 
 @dataclass
@@ -42,9 +31,24 @@ class Article:
 	enable_linter: bool = field(default=True)
 	linter_lang: str = field(default='en-US')
 
+	source_dir: Path = field(default=Path('source'))
+	build_dir: Path = field(default=Path('build'))
+
 	linter: RSTLinter | None = field(default=None)
 
-	__custom_dictionary: set[str] = field(default_factory=set)
+	_custom_dictionary: set[str] = field(default_factory=set)
+
+	_index_template: str = field(default=None)
+	_bibliography_template: str = field(default=None)
+	_definition_list_template: str = field(default=None)
+	_config_template: str = field(default=None)
+	_title_template: str = field(default=None)
+	_preamble_template: str = field(default=None)
+
+	_ext_path: Path = Path('_ext')
+
+	sphinx_logs: str = field(default='')
+	latex_logs: str = field(default='')
 
 	def __post_init__(self):
 		self.set_abstract = partial(
@@ -56,15 +60,48 @@ class Article:
 		if self.enable_linter and RSTLinter is not None:
 			self.linter = RSTLinter(
 				self.linter_lang,
-				custom_dictionary=self.__custom_dictionary,
+				custom_dictionary=self._custom_dictionary,
 			)
-		self.print_errors = self.linter.print_errors
+			self.print_errors = self.linter.print_errors
+
+		self.reload_templates()
+
+		if (self.source_dir / "custom_dictionary.txt").exists():
+			with open(self.source_dir / "custom_dictionary.txt", "r") as f:
+				new_words = f.readlines()
+			self.add_custom_words(*new_words)
+
+	@staticmethod
+	def reload_templates():
+		with open(pdir / "templates" / "index.rst", "r") as f:
+			Article._index_template = f.read()
+		with open(pdir / "templates" / "bibliography.rst", "r") as f:
+			Article._bibliography_template = f.read()
+		with open(pdir / "templates" / "definition_list.rst", "r") as f:
+			Article._definition_list_template = f.read()
+		with open(pdir / "templates" / "conf.py", "r") as f:
+			Article._config_template = f.read()
+		with open(pdir / "templates" / "title.tex", "r") as f:
+			Article._title_template = f.read()
+		with open(pdir / "templates" / "preamble.tex", "r") as f:
+			Article._preamble_template = f.read()
+
+	def reload_extensions(self):
+		self._ext_path.mkdir(parents=True, exist_ok=True)
+		for _ext_file in _base_ext_path.glob("*.py"):
+			shutil.copy(
+				_ext_file,
+				self._ext_path / _ext_file.name
+			)
 
 	def add_custom_words(self, *words: str):
-		self.__custom_dictionary.update((
+		self._custom_dictionary.update(filter(bool, (
 			word.strip().lower()
 			for word in words
-		))
+		)))
+
+		with open(self.source_dir / "custom_dictionary.txt", "w+") as f:
+			f.write("\n".join(self._custom_dictionary))
 
 	def set_config(
 		self,
@@ -76,44 +113,60 @@ class Article:
 		dark: bool,
 		*,
 		extensions: set[str] = default_extensions,
-		base: Path = Path("source"),
+		base: Path | None = None,
 	):
-		project_ext = Path("_ext")
-		project_ext.mkdir(parents=True, exist_ok=True)
-		for _ext_file in _ext_path.glob("*.py"):
-			shutil.copy(
-				_ext_file,
-				project_ext / _ext_file.name
-			)
+		if base is None:
+			base = self.source_dir
+
+		assert '"' not in project, "Project name cannot contain quotes"
+		assert '"' not in title, "Title cannot contain quotes"
+		assert '"' not in subtitle, "Subtitle cannot contain quotes"
+		assert '"' not in author, "Author cannot contain quotes"
+		assert '"' not in institution, "Institution cannot contain quotes"
+		assert str(dark) in ('True', 'False'), "Dark mode must be a boolean"
+		assert not any((
+			'"' in ext
+			for ext in extensions
+		)), "Extensions cannot contain quotes"
+
+		self.reload_extensions()
+
 		self.write(
 			"title.tex",
-			title_template,
+			Article._title_template,
+			base=base,
+			enable_linter=False,
+			add_fname_title=False,
+		)
+		self.write(
+			"preamble.tex",
+			Article._preamble_template,
 			base=base,
 			enable_linter=False,
 			add_fname_title=False,
 		)
 		self.write(
 			"conf.py",
-			config_template.replace(
-				'___{extensions}___',
+			Article._config_template.replace(
+				'___1_{extensions}___',
 				"\",\n\t\"".join(extensions)
 			).replace(
-				'___{project}___',
+				'___1_{project}___',
 				project
 			).replace(
-				'___{title}___',
+				'___1_{title}___',
 				title
 			).replace(
-				'___{subtitle}___',
+				'___1_{subtitle}___',
 				subtitle
 			).replace(
-				'___{author}___',
+				'___1_{author}___',
 				author
 			).replace(
-				'___{institution}___',
+				'___1_{institution}___',
 				institution
 			).replace(
-				'___{dark}___',
+				'___1_{dark}___',
 				'True' if dark else 'False'
 			),
 			base=base,
@@ -131,11 +184,34 @@ class Article:
 		self,
 		*files: Path | str,
 		fname: Path | str = "index.rst",
-		base: Path = Path("source"),
+		base: Path | None = None,
+		definitions: str = "definitions.rst",
+		definition_list: str = "definition_list.rst",
+		bibliography: str = "bibliography.bib",
 	):
+		if base is None:
+			base = self.source_dir
+
+		index = [Article._index_template.format(toctree="\n\t".join(files))]
+
+		if not index[0].endswith("\n"):
+			index.append('')
+
+		if definitions:
+			index.append(f".. include:: {definitions}")
+		if definition_list:
+			index.append(f".. include:: {definition_list}")
+		if bibliography:
+			index.append(f".. include:: {bibliography}")
+
+		if len(index) == 1:
+			index = index[0]
+		else:
+			index = "\n".join(index)
+
 		self.write(
 			fname,
-			index_template.format(toctree="\n\t".join(files)),
+			index,
 			base=base,
 			enable_linter=False,
 			add_fname_title=True,
@@ -146,13 +222,16 @@ class Article:
 		content: str,
 		*,
 		fname: Path | str = "bibliography.bib",
-		base: Path = Path("source"),
+		base: Path | None = None,
 		enable_linter: bool = None,
 		style: str = "unsrt",
 	):
+		if base is None:
+			base = self.source_dir
+
 		self.write(
 			"bibliography.rst",
-			bibliography_template.format(style=style),
+			Article._bibliography_template.format(style=style),
 			base=base,
 			enable_linter=enable_linter,
 			add_fname_title=False,
@@ -170,12 +249,15 @@ class Article:
 		content: str,
 		*,
 		fname: Path | str = "definitions.rst",
-		base: Path = Path("source"),
+		base: Path | None = None,
 		enable_linter: bool = None,
 	):
+		if base is None:
+			base = self.source_dir
+
 		self.write(
 			"definition_list.rst",
-			definition_list_template,
+			Article._definition_list_template,
 			base=base,
 			enable_linter=enable_linter,
 			add_fname_title=False,
@@ -193,13 +275,16 @@ class Article:
 		file: Path | str,
 		content: str,
 		*,
-		base: Path = Path("source"),
+		base: Path | None = None,
 		enable_linter: bool = True,
 		enable_syntax_linting: bool = True,
 		enable_language_linting: bool = True,
 		raise_on_error: bool = False,
 		add_fname_title: bool = False,
 	):
+		if base is None:
+			base = self.source_dir
+
 		if base is not None:
 			file = base / file
 		elif not isinstance(file, Path):
@@ -245,10 +330,19 @@ class Article:
 	def build(
 		self,
 		*,
-		source_dir: Path = Path("source"),
-		build_dir: Path = Path("build"),
-		log_file: Path = Path("build") / "doc.log",
+		source_dir: Path | None = None,
+		build_dir: Path | None = None,
+		log_file: Path | None = None,
 	):
+		if source_dir is None:
+			source_dir = self.source_dir
+
+		if build_dir is None:
+			build_dir = self.build_dir
+
+		if log_file is None:
+			log_file = build_dir / "doc.log"
+
 		sphinx_result = subprocess.run(
 			[
 				'sphinx-build',
@@ -263,39 +357,37 @@ class Article:
 			text=True
 		)
 
+		self.sphinx_logs = f"""
+[Sphinx STDOUT]
+{sphinx_result.stdout.strip()}
+[Sphinx STDERR]
+{sphinx_result.stderr.strip()}
+"""
 		if sphinx_result.returncode != 0:
 			print(
 				"Error: Sphinx build failed "
 				f"(Return code {sphinx_result.returncode}). Aborting."
 			)
-			if sphinx_result.stderr:
-				print("\n[Sphinx STDERR]\n" + sphinx_result.stderr.strip())
-
-			if sphinx_result.stdout:
-				print("\n[Sphinx STDOUT]\n" + sphinx_result.stdout.strip())
-
-			class make_result:
-				stdout = ''
-				stderr = 'Sphinx build failed'
-				returncode = 0
+			print(self.sphinx_logs)
 		else:
 			make_result = subprocess.run(
-				['make', '-j', '8'],
+				['make', '-j', '8', '--silent'],
 				cwd=build_dir,
 				capture_output=True,
 				text=True,
 				check=False
 			)
 
+			try:
+				with open(log_file, 'r') as f:
+					self.latex_logs = f.read()
+			except Exception as e:
+				self.latex_logs = f"An exception occurred: {e}"
+
 			if make_result.returncode != 0:
 				print("\nXXXXXXXXXXXX")
 				print(">>> BEGIN DOC.LOG CONTENT (make failed) <<<")
-				try:
-					with open(log_file, 'r') as f:
-						latex_log = f.read()
-					print(latex_log)
-				except Exception as e:
-					print(f"An exceptio occurred: {e}")
+				print(self.latex_logs)
 				print(">>> END DOC.LOG CONTENT <<<")
 			else:
 				print("Generated PDF at:", build_dir / "doc.pdf")
@@ -304,9 +396,12 @@ class Article:
 	def render_pdf(
 		self,
 		*,
-		build_dir: Path = Path("build"),
+		build_dir: Path | None = None,
 		show_page: int | None = None,
 	):
+		if build_dir is None:
+			build_dir = self.build_dir
+
 		if convert_from_path is None or display is None:
 			raise ImportError("pdf2image and IPython are required to render the PDF")
 

@@ -1,49 +1,41 @@
+import re
 from pathlib import Path
 from dataclasses import dataclass
-import re
-
-from docutils import nodes
-from docutils.parsers.rst import directives
-from sphinx.util.docutils import SphinxDirective
 
 import wikipedia
 
+from docutils import nodes
+from docutils.parsers.rst import directives
 
-ENV_ABB_KEY = 'abbreviation_long_text_counter'
+from sphinx.util.docutils import SphinxDirective
+from sphinx.transforms import SphinxTransform
+
+
 ENV_DEFS_KEY = 'definitions'
-
+ENV_SEEN_KEY = 'seen_abbreviations'
+DEF_PATH = Path('source/definitions')
+DEF_PATH.mkdir(parents=True, exist_ok=True)
 
 wiki_ref_pattern = re.compile(r'(\[\d+\]|\u200B)')
 def_sent_pattern = re.compile(r'\.[^\.]')
 
-definitions_path = Path('source', 'definitions')
-definitions_path.mkdir(exist_ok=True)
-
 
 @dataclass
 class Definition:
-	short: str | None
-	long: str | None
-	description: str | None
-	search: str | None
-	language: str | None
-	max_sentences: int | None
+	short: str
+	long: str
+	search: str
+	language: str
+	max_sentences: int
+	description: str
 
 
-class DefinitionList(nodes.Element):
+class DefinitionListPlaceholder(nodes.General, nodes.Element):
 	pass
 
 
-class NewDefinitionListDirective(SphinxDirective):
-	required_arguments = 0
-	optional_arguments = 0
-	final_argument_whitespace = True
-	has_content = False
-
-	option_spec = {}
-
-	def run(self):
-		return [DefinitionList()]
+class AbbrevPlaceholder(nodes.General, nodes.Element):
+	pass
 
 
 class NewDefinitionDirective(SphinxDirective):
@@ -66,16 +58,14 @@ class NewDefinitionDirective(SphinxDirective):
 
 	def run(self):
 		env = self.env
-
 		if not hasattr(env, ENV_DEFS_KEY):
 			setattr(env, ENV_DEFS_KEY, dict())
-
 		definitions = getattr(env, ENV_DEFS_KEY)
 
 		abb = self.arguments[0]
 
 		definitions[abb] = Definition(
-			short=self.options.get('short'),
+			short=self.options.get('short', abb),
 			long=self.options.get('long'),
 			description=self.options.get(
 				'description',
@@ -86,171 +76,110 @@ class NewDefinitionDirective(SphinxDirective):
 				'language',
 				self.options.get('lang')
 			),
-			max_sentences=self.options.get(
+			max_sentences=int(self.options.get(
 				'max_sentences',
-				self.options.get('max_sents')
-			),
+				self.options.get('max_sents', 0)
+			)),
 		)
-
 		return []
 
 
-def show_abbreviation(
-	role,
-	rawtext,
-	text,
-	lineno,
-	inliner,
-	options: dict = {},
-	content: list = []
-):
-	env = inliner.document.settings.env.app.env
-
-	if not hasattr(env, ENV_DEFS_KEY):
-		err = nodes.literal(rawtext, "No definitions")
-		return [err], []
-
-	definitions = getattr(env, ENV_DEFS_KEY)
-	definition = definitions.get(text)
-
-	if definition is None:
-		err = nodes.literal(rawtext, f"No definition for {text}")
-		return [err], []
-
-	if not hasattr(env, ENV_ABB_KEY):
-		setattr(env, ENV_ABB_KEY, set())
-
-	added_texts = getattr(env, ENV_ABB_KEY)
-
-	short = definition.short or text
-
-	if definition.long is not None and text not in added_texts:
-		added_texts.add(text)
-
-		abbreviation = nodes.literal(rawtext, f"{definition.long} ({short})")
-	else:
-		abbreviation = nodes.literal(rawtext, short)
-
-	return [abbreviation], []
+def abbrev_role(role, raw_text, text, lineno, inliner, options={}, content=[]):
+	node = AbbrevPlaceholder()
+	node.attributes['key'] = text
+	node.attributes['raw_text'] = raw_text
+	return [node], []
 
 
-def delayed_definition_list(app, doctree, docname):
-	for node in doctree.findall(DefinitionList):
-		env = app.env
+class ResolveDefinitions(SphinxTransform):
+	default_priority = 111
 
-		if not hasattr(env, ENV_DEFS_KEY):
-			setattr(env, ENV_DEFS_KEY, dict())
+	def apply(self):
+		env = self.document.settings.env
+		defs = getattr(env, ENV_DEFS_KEY)
+		if not hasattr(env, ENV_SEEN_KEY):
+			setattr(env, ENV_SEEN_KEY, set())
+		registry = getattr(env, ENV_SEEN_KEY)
 
-		definitions = getattr(env, ENV_DEFS_KEY)
-
-		if not len(definitions):
-			print("No definitions")
-			node.replace_self([
-				nodes.literal("No_definitions_text", "Definitions is empty")
-			])
-			continue
-
-		# TODO: Add plain page type
-
-		definition_list = nodes.definition_list()
-		for abb, defi in definitions.items():
-			description = defi.description
-			if description is None and defi.search is not None:
-				stored_def = definitions_path / f"{defi.search.replace('/', '_')}.txt"
-
-				print(defi.search)
-
-				if stored_def.exists():
-					with open(stored_def, 'r') as f:
-						description = f.read()
-				else:
-					if defi.language is not None:
-						wikipedia.set_lang(defi.language)
-
-					description = wiki_ref_pattern.sub(
-						'',
-						str(wikipedia.summary(defi.search))
-					).replace('\n', ' ').strip()
-
-					with open(stored_def, 'w') as f:
-						f.write(description)
-
-			if description is None:
+		for node in self.document.traverse(AbbrevPlaceholder):
+			key = node.attributes['key']
+			d = defs.get(key)
+			if not d:
+				node.replace_self(nodes.problematic('', key))
 				continue
 
-			if defi.max_sentences is not None:
-				max_sents = int(defi.max_sentences)
-				sent_matches = list(def_sent_pattern.finditer(description))
-
-				if len(sent_matches) > max_sents:
-					nth_sentence_end_match = sent_matches[max_sents - 1]
-
-					cut_off_index = nth_sentence_end_match.end() - 1
-
-					description = description[:cut_off_index]
-
-			if defi.long:
-				if defi.short or abb:
-					long = f"{defi.long} ({defi.short or abb})"
-				else:
-					long = defi.long
+			if key not in registry and d.long:
+				label = f"{d.long} ({d.short})"
+				registry.add(key)
 			else:
-				long = defi.short or abb
-
-			list_item = nodes.definition_list_item()
-
-			list_item += nodes.term('', long)
-
-			description_text = nodes.paragraph(description, description)
-			definition = nodes.definition('', description_text)
-			list_item += definition
-
-			definition_list += list_item
-
-		node.replace_self(definition_list)
+				label = d.short
+			node.replace_self(nodes.Text(label))
 
 
-def latex_noop_visit(self, node):
-	pass
+class ResolveDefinitionList(SphinxTransform):
+	default_priority = 999
 
+	def apply(self):
+		env = self.document.settings.env
+		if not hasattr(env, ENV_DEFS_KEY):
+			setattr(env, ENV_DEFS_KEY, dict())
+		defs = getattr(env, ENV_DEFS_KEY)
 
-def latex_noop_depart(self, node):
-	pass
+		for node in self.document.traverse(DefinitionListPlaceholder):
+			if not defs:
+				node.replace_self(nodes.problematic("", "No definitions found"))
+				continue
 
+			dl = nodes.definition_list()
+			for key, d in defs.items():
+				desc = self._get_description(d)
+				if desc is None:
+					continue
 
-def purge_definitions(app, env, docname):
-	pass
+				term_text = f"{d.long} ({d.short})" if d.long else d.short
+				li = nodes.definition_list_item()
+				li += nodes.term('', term_text)
+				li += nodes.definition('', nodes.paragraph('', desc))
+				dl += li
+			node.replace_self(dl)
 
+	def _get_description(self, d):
+		if d.description:
+			return d.description
 
-def merge_definitions(app, env, docnames, other):
-	if not hasattr(env, ENV_DEFS_KEY):
-		setattr(env, ENV_DEFS_KEY, dict())
+		if d.search is None:
+			return None
 
-	if hasattr(other, ENV_DEFS_KEY):
-		env_definitions = getattr(env, ENV_DEFS_KEY)
-		other_definitions = getattr(other, ENV_DEFS_KEY)
+		cache_file = DEF_PATH / f"{d.search.replace('/', '_')}.txt"
 
-		env_definitions.update(other_definitions)
+		if cache_file.exists():
+			text = cache_file.read_text()
+		else:
+			wikipedia.set_lang(d.language)
+			text = wikipedia.summary(d.search)
+			text = wiki_ref_pattern.sub('', text).replace('\n', ' ').strip()
+			cache_file.write_text(text)
+
+		if d.max_sentences > 0:
+			matches = list(def_sent_pattern.finditer(text))
+			if len(matches) >= d.max_sentences:
+				text = text[:matches[d.max_sentences - 1].end() - 1]
+		return text
 
 
 def setup(app):
-	app.add_directive('definitions', NewDefinitionListDirective)
+	app.add_node(AbbrevPlaceholder)
+	app.add_node(DefinitionListPlaceholder)
+
 	app.add_directive('new-def', NewDefinitionDirective)
+	app.add_directive('definitions', lambda *_: [DefinitionListPlaceholder()])
 
-	app.add_role('abbrev', show_abbreviation)
+	app.add_role('abbrev', abbrev_role)
 
-	app.add_node(
-		DefinitionList,
-		latex=(latex_noop_visit, latex_noop_depart)
-	)
-
-	app.connect('env-purge-doc', purge_definitions)
-	app.connect('env-merge-info', merge_definitions)
-
-	app.connect('doctree-resolved', delayed_definition_list)
-
+	app.add_post_transform(ResolveDefinitions)
+	app.add_post_transform(ResolveDefinitionList)
 	return {
-		'version': '0.2',
-		'parallel_read_safe': True,
+		'version': '0.1',
+		'parallel_read_safe': False,
 		'parallel_write_safe': True,
 	}
