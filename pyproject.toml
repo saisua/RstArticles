@@ -1,7 +1,7 @@
 [project]
-name = "rstarticles"
+name = "rst_articles"
 version = "0.1.0"
-description = "Add your description here"
+description = "A tool for generating PDFs documents from reStructuredText (rST) files using Sphinx and LaTeX as intermediate format."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -10,6 +10,13 @@ dependencies = [
     "sphinxcontrib-bibtex>=2.6.5",
     "wikipedia>=1.4.0",
 ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/saisua/RstArticles"
 
 [project.optional-dependencies]
 linter = [
@@ -26,3 +33,11 @@ dev = [
     "ipykernel>=7.2.0",
     "ipython>=9.10.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["rst_articles*"]
+exclude = ["source*", "build*"]
+
+[tool.setuptools.package-data]
+"rst_articles.templates" = ["*.rst", "*.tex", "*.bib"]
+"rst_articles._ext" = ["*.rst", "*.tex", "*.bib"]
