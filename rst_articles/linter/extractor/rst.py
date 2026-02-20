@@ -58,6 +58,9 @@ def rst_to_text(rst_content: str) -> str:
 
 	found_text = visitor.found_text
 
+	if not found_text:
+		return ""
+
 	clean_text = [str(found_text[0])]
 	for text in map(str, found_text[1:]):
 		prev_ends = ends_s.match(clean_text[-1])
