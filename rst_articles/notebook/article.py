@@ -206,7 +206,7 @@ class Article:
 		base: Optional[Path] = None,
 		definitions: str = "definitions.rst",
 		definition_list: str = "definition_list.rst",
-		bibliography: str = "bibliography.bib",
+		bibliography: str = "bibliography.rst",
 	):
 		if base is None:
 			base = self.source_dir
@@ -316,8 +316,11 @@ class Article:
 
 		content = content.strip('\n')
 
-		if file.suffix == '.rst' and add_fname_title:
-			content = f"\n{file.stem.upper()}\n{'^' * len(file.stem)}\n\n{content}\n"
+		if file.suffix == '.rst':
+			if add_fname_title:
+				content = f"{file.stem.upper()}\n{'^' * len(file.stem)}\n\n{content}\n"
+			else:
+				content = f"{content}\n"
 
 		lang_errors = syn_errors = False
 
