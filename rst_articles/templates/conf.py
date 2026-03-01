@@ -31,28 +31,30 @@ lrst_epilog = '''
 .. |today| date::
 '''
 
-try:
-	maketitle = Path('title.tex').read_text()
-except FileNotFoundError:
-	maketitle = None
-
-try:
-	abstract = Path('abstract.tex').read_text()
-except FileNotFoundError:
+abstract_file = Path('abstract.tex')
+if abstract_file.exists():
+	abstract = abstract_file.read_text()
+else:
 	abstract = None
 
-for placeholder, replacement in {
-	r'\title': title,
-	r'\subtitle': subtitle,
-	r'\name': author,
-	r'\institution': institution,
-	r'\abstract': abstract,
-}.items():
-	if replacement is not None:
-		maketitle = maketitle.replace(
-			placeholder,
-			replacement
-		)
+maketitle_file = Path('title.tex')
+if maketitle_file.exists():
+	maketitle = maketitle_file.read_text()
+
+	for placeholder, replacement in {
+		r'\title': title,
+		r'\subtitle': subtitle,
+		r'\name': author,
+		r'\institution': institution,
+		r'\abstract': abstract,
+	}.items():
+		if replacement is not None:
+			maketitle = maketitle.replace(
+				placeholder,
+				replacement
+			)
+else:
+	maketitle = None
 
 latex_toplevel_sectioning = 'section'
 
@@ -91,7 +93,7 @@ if title_background_image is not None or content_background_image is not None:
 	if content_background_image is not None:
 		preamble += rf'''
 	\else
-	  \includegraphics[width=\paperwidth,height=\paperheight]{{{content_bg.png}}}%
+	  \includegraphics[width=\paperwidth,height=\paperheight]{{{content_background_image}}}%
 '''
 	preamble += r'''
 	\fi
@@ -103,12 +105,14 @@ latex_elements = {
 	'papersize': 'a4paper',
 	'pointsize': '11pt',
 	'sphinxsetup': f'TitleColor={text_color or "black"},',
-	'preamble': preamble,
-	'maketitle': maketitle,
 	'fncychap': '',
 	'extraclassoptions': 'openany',
 	'classoptions': r'12pt,english,listoffigures,listoftables,listofalgorithms',
 }
+if maketitle is not None:
+	latex_elements['maketitle'] = maketitle
+if preamble is not None:
+	latex_elements['preamble'] = preamble
 
 if document_class is not None:
 	latex_elements['documentclass'] = document_class
