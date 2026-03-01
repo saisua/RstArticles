@@ -67,6 +67,8 @@ class Article:
 
 		self.reload_templates()
 
+		self.source_dir.mkdir(parents=True, exist_ok=True)
+
 		if (self.source_dir / "custom_dictionary.txt").exists():
 			self.add_custom_words(*(
 				(self.source_dir / "custom_dictionary.txt").read_text().split('\n')
