@@ -13,7 +13,7 @@ except ImportError:
 	pass
 
 custom_extensions = set()
-for extension in Path('rst_articles/_ext').glob('*.py'):
+for extension in (Path(__file__).parent / "_ext").glob('*.py'):
 	name = extension.name
 	if name.startswith('_'):
 		continue
