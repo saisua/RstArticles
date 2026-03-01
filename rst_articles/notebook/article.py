@@ -318,7 +318,12 @@ class Article:
 
 		lang_errors = syn_errors = False
 
-		if (enable_linter and enable_language_linting and self.linter is not None):
+		if (
+			self.linter and  # noqa: W504
+			enable_linter and  # noqa: W504
+			enable_language_linting and  # noqa: W504
+			self.linter is not None
+		):
 			self.linter.lint_language(
 				content,
 				content_extension=file.suffix
@@ -328,19 +333,24 @@ class Article:
 					self.linter.print_language_errors()
 					raise ValueError("Language errors found")
 				lang_errors = True
-		else:
+		elif self.linter:
 			self.linter.language_errors.clear()
 
 		file.write_text(content)
 
-		if (enable_linter and enable_syntax_linting and self.linter is not None):
+		if (
+			self.linter and  # noqa: W504
+			enable_linter and  # noqa: W504
+			enable_syntax_linting and  # noqa: W504
+			self.linter is not None
+		):
 			self.linter.lint_syntax(file)
 			if len(self.linter.syntax_errors):
 				if raise_on_error:
 					self.print_errors()
 					raise ValueError("Syntax errors found")
 				syn_errors = True
-		else:
+		elif self.linter:
 			self.linter.syntax_errors.clear()
 
 		if syn_errors or lang_errors:
