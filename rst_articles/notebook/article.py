@@ -88,7 +88,7 @@ class Article:
 	def reload_extensions(self):
 		self._ext_path.mkdir(parents=True, exist_ok=True)
 		for _ext_file in _base_ext_path.glob("*.py"):
-			_ext_file.copy(self._ext_path / _ext_file.name)
+			shutil.copy(_ext_file, self._ext_path / _ext_file.name)
 
 	def add_custom_words(self, *words: str):
 		self._custom_dictionary.update(filter(bool, (
