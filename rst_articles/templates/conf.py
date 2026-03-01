@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str((Path(__file__).parent.parent / "_ext").resolve()))
+sys.path.insert(0, str((Path(__file__).parents[1] / "_ext").resolve()))
 
 extensions = [
 	"___1_{extensions}___",
@@ -32,14 +32,12 @@ lrst_epilog = '''
 '''
 
 try:
-	with open('title.tex') as f:
-		maketitle = f.read()
+	maketitle = Path('title.tex').read_text()
 except FileNotFoundError:
 	maketitle = None
 
 try:
-	with open('abstract.txt') as f:
-		abstract = f.read()
+	abstract = Path('abstract.tex').read_text()
 except FileNotFoundError:
 	abstract = None
 
@@ -58,8 +56,7 @@ for placeholder, replacement in {
 
 latex_toplevel_sectioning = 'section'
 
-with open('preamble.tex') as f:
-	preamble = f.read()
+preamble = Path('preamble.tex').read_text()
 
 preamble = preamble.replace(
 	'___2_{author}___',

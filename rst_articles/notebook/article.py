@@ -21,7 +21,7 @@ except ImportError:
 	RSTLinter = None
 
 
-pdir = Path(__file__).parent.parent
+pdir = Path(__file__).parents[1]
 _base_ext_path: Path = pdir / "_ext"
 
 
@@ -68,32 +68,25 @@ class Article:
 		self.reload_templates()
 
 		if (self.source_dir / "custom_dictionary.txt").exists():
-			with open(self.source_dir / "custom_dictionary.txt", "r") as f:
-				new_words = f.readlines()
-			self.add_custom_words(*new_words)
+			self.add_custom_words(*(
+				(self.source_dir / "custom_dictionary.txt").read_text().split('\n')
+			))
 
 	@staticmethod
 	def reload_templates():
-		with open(pdir / "templates" / "index.rst", "r") as f:
-			Article._index_template = f.read()
-		with open(pdir / "templates" / "bibliography.rst", "r") as f:
-			Article._bibliography_template = f.read()
-		with open(pdir / "templates" / "definition_list.rst", "r") as f:
-			Article._definition_list_template = f.read()
-		with open(pdir / "templates" / "conf.py", "r") as f:
-			Article._config_template = f.read()
-		with open(pdir / "templates" / "title.tex", "r") as f:
-			Article._title_template = f.read()
-		with open(pdir / "templates" / "preamble.tex", "r") as f:
-			Article._preamble_template = f.read()
+		templates = pdir / "templates"
+
+		Article._index_template = (templates / "index.rst").read_text()
+		Article._bibliography_template = (templates / "bibliography.rst").read_text()
+		Article._definition_list_template = (templates / "definition_list.rst").read_text()  # noqa: E501
+		Article._config_template = (templates / "conf.py").read_text()
+		Article._title_template = (templates / "title.tex").read_text()
+		Article._preamble_template = (templates / "preamble.tex").read_text()
 
 	def reload_extensions(self):
 		self._ext_path.mkdir(parents=True, exist_ok=True)
 		for _ext_file in _base_ext_path.glob("*.py"):
-			shutil.copy(
-				_ext_file,
-				self._ext_path / _ext_file.name
-			)
+			_ext_file.copy(self._ext_path / _ext_file.name)
 
 	def add_custom_words(self, *words: str):
 		self._custom_dictionary.update(filter(bool, (
@@ -101,8 +94,9 @@ class Article:
 			for word in words
 		)))
 
-		with open(self.source_dir / "custom_dictionary.txt", "w+") as f:
-			f.write("\n".join(self._custom_dictionary))
+		(self.source_dir / "custom_dictionary.txt").write_text(
+			"\n".join(self._custom_dictionary)
+		)
 
 	def set_config(
 		self,
@@ -337,8 +331,7 @@ class Article:
 		else:
 			self.linter.language_errors.clear()
 
-		with open(file, 'w') as f:
-			f.write(content)
+		file.write_text(content)
 
 		if (enable_linter and enable_syntax_linting and self.linter is not None):
 			self.linter.lint_syntax(file)
@@ -405,8 +398,7 @@ class Article:
 			)
 
 			try:
-				with open(log_file, 'r') as f:
-					self.latex_logs = f.read()
+				self.latex_logs = log_file.read_text()
 			except Exception as e:
 				self.latex_logs = f"An exception occurred: {e}"
 
