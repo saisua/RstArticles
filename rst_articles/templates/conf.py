@@ -14,7 +14,7 @@ author = "___1_{author}___"
 institution = "___1_{institution}___"
 numfig = True
 
-dark = ___1_{dark}___  # noqa: E999
+dark = ___1_{dark}___  # type: ignore # noqa: E999
 
 if dark:
 	background_color = 'black'
