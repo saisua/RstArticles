@@ -31,7 +31,7 @@ lrst_epilog = '''
 .. |today| date::
 '''
 
-abstract_file = Path('abstract.tex')
+abstract_file = Path('abstract.txt')
 if abstract_file.exists():
 	abstract = abstract_file.read_text()
 else:
