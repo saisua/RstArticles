@@ -203,6 +203,7 @@ class Article:
 		definitions: str = "definitions.rst",
 		definition_list: str = "definition_list.rst",
 		bibliography: str = "bibliography.rst",
+		substitutions: str = "substitutions.rst",
 	):
 		if base is None:
 			base = self.source_dir
@@ -218,6 +219,8 @@ class Article:
 			index.append(f".. include:: {definition_list}")
 		if bibliography:
 			index.append(f".. include:: {bibliography}")
+		if substitutions:
+			index.append(f".. include:: {substitutions}")
 
 		if len(index) == 1:
 			index = index[0]
@@ -282,6 +285,34 @@ class Article:
 			content,
 			base=base,
 			enable_linter=enable_linter,
+			add_fname_title=False,
+		)
+
+
+	def set_substitutions(
+		self,
+		content: str | dict[str, str],
+		*,
+		fname: Path | str = "substitutions.rst",
+		base: Optional[Path] = None,
+	):
+		if base is None:
+			base = self.source_dir
+
+		if isinstance(content, dict):
+			content = '\n'.join(
+				f".. |{key}| replace:: {value}"
+				for key, value in content.items()
+			)
+		elif not isinstance(content, str):
+			raise ValueError("Substitutions must either be Rst code or a dict of name:replacement")
+
+
+		self.write(
+			"substitutions.rst",
+			content,
+			base=base,
+			enable_language_linting=False,
 			add_fname_title=False,
 		)
 
